@@ -1,0 +1,20 @@
+{
+  "name": "vendor/ilyasavich",
+  "description": "The filter api for laravel app",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "IlyaSavich",
+      "email": "ilia.savich.97@gmail.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Savich\\": "src/"
+    }
+  },
+  "minimum-stability": "dev",
+  "require": {
+    "illuminate/database": "^5.2"
+  }
+}
