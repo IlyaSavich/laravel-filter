@@ -34,7 +34,7 @@ abstract class Kernel
     public function __construct()
     {
         $this->register();
-        $this->groupUrlFilters();
+        $this->groupUsingFilters();
     }
 
     /**
@@ -57,13 +57,16 @@ abstract class Kernel
     /**
      * Grouping all filters from url by models.
      * Group name is the model class name in camel case
+     * @param array $filters
      */
-    protected function groupUrlFilters()
+    public function groupUsingFilters(array $filters = [])
     {
-        $urlFilters = $this->getUrlFilters();
+        $this->cleanUsingFilters();
 
-        foreach ($urlFilters as $urlFilter) {
-            list($filterAlias, $parameters) = $this->parseUrlFilter($urlFilter);
+        $usingFilters = $this->getFilters($filters);
+
+        foreach ($usingFilters as $usingFilter) {
+            list($filterAlias, $parameters) = $this->parseUsingFilter($usingFilter);
 
             $filterClass = $this->find($filterAlias);
 
@@ -82,11 +85,12 @@ abstract class Kernel
 
     /**
      * Getting filters from url
+     * @param array $filters
      * @return array
      */
-    public function getUrlFilters()
+    public function getFilters(array $filters)
     {
-        return Input::all();
+        return empty($filters) ? Input::all() : $filters;
     }
 
     /**
@@ -95,12 +99,12 @@ abstract class Kernel
      * @param string $urlFilter
      * @return array
      */
-    protected function parseUrlFilter($urlFilter)
+    protected function parseUsingFilter($urlFilter)
     {
         preg_match('/([^:]*)(:(.*))?/', $urlFilter, $matches);
 
         $parameters = isset($matches[3]) ? explode(',', $matches[3]) : [];
-        $parameters = $this->filterParameters($parameters);
+        $parameters = $this->filteringParameters($parameters);
 
         return [$matches[1], $parameters,];
     }
@@ -203,7 +207,7 @@ abstract class Kernel
      * @param array $parameters
      * @return array
      */
-    protected function filterParameters($parameters)
+    protected function filteringParameters($parameters)
     {
         return array_filter($parameters, function ($parameter) {
             $parameter = trim($parameter);
@@ -212,6 +216,23 @@ abstract class Kernel
         });
     }
 
+    /**
+     * Uses for example if the you passing filters not through the url parameters
+     * or want to change it format in url
+     * For it you need first of all clean using filters
+     * and then repeat grouping filters by calling groupUsingFilters() method
+     */
+    public function cleanUsingFilters()
+    {
+        $this->usingFilters = [];
+    }
+
+    /**
+     * Checking is the custom filter class is inheritor of the Filter
+     * @param Filter $filterClass
+     * @param string $filter Registered user filter class
+     * @throws \Exception
+     */
     protected function checkFilterClass($filterClass, $filter)
     {
         if (!$filterClass instanceof Filter) {

@@ -1,6 +1,6 @@
 {
   "name": "ilyasavich/filter",
-  "description": "The filter api for laravel app",
+  "description": "The filter service for laravel app",
   "license": "MIT",
   "authors": [
     {
