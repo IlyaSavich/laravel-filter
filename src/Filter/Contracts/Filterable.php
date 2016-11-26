@@ -18,12 +18,12 @@ interface Filterable
      * By this namespace will be grouping filters
      * @return string
      */
-    public function modelNamespace();
+    public static function modelNamespace();
 
     /**
      * Specify alias of the filter
      * By this alias will be searching filter class
      * @return string
      */
-    public function alias();
+    public static function alias();
 }

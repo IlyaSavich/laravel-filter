@@ -11,8 +11,13 @@ use Savich\Filter\Contracts\Filter;
  * Class used for registering filters and for finding the filter by it alias
  * @package App\Services\Filter
  */
-abstract class Kernel
+class Kernel
 {
+    /**
+     * @var Kernel|static
+     */
+    protected static $instance;
+
     /**
      * There you can register your filter classes
      * @var array
@@ -31,10 +36,22 @@ abstract class Kernel
      */
     protected $usingFilters = [];
 
-    public function __construct()
+    protected function __construct()
     {
         $this->register();
-        $this->groupUsingFilters();
+    }
+
+    /**
+     * Create singleton instance
+     * @return Kernel|static
+     */
+    public static function instance()
+    {
+        if (is_null(static::$instance)) {
+            return new static;
+        }
+
+        return static::$instance;
     }
 
     /**
@@ -46,11 +63,8 @@ abstract class Kernel
     protected function register()
     {
         foreach ($this->filters as $filter) {
-            /* @var $filterClass Filter */
-            $filterClass = new $filter;
-
-            $this->checkFilterClass($filterClass, $filter);
-            $this->addRegistered($filterClass);
+            $this->checkFilterClass($filter);
+            $this->addRegistered($filter);
         }
     }
 
@@ -63,24 +77,46 @@ abstract class Kernel
     {
         $this->cleanUsingFilters();
 
+        $this->usingFilters = $this->makeFilterGroups($filters);
+    }
+
+    /**
+     * Grouping filters for future building query
+     * @param array $filters
+     * @return array
+     * @throws \Exception
+     */
+    protected function makeFilterGroups(array $filters = [])
+    {
         $usingFilters = $this->getFilters($filters);
 
+        $groups = [];
         foreach ($usingFilters as $usingFilter) {
+            if (!is_string($usingFilter)) {
+                throw new \Exception('Invalid filter passed. Expecting string got ' . json_encode($usingFilter));
+            }
+
             list($filterAlias, $parameters) = $this->parseUsingFilter($usingFilter);
 
-            $filterClass = $this->find($filterAlias);
+            $filter = $this->find($filterAlias);
 
-            if (!$filterClass) {
+            if (!$filter) {
                 continue;
             }
 
-            $filterClass->addParameters($parameters);
+            /* @var Filter $filterClass */
+            $filterClass = new $filter;
+
             $groupName = $this->getGroupName($filterClass->modelNamespace());
 
             if (!$this->hasUsed($groupName, $filterAlias)) {
-                $this->usingFilters[$groupName][$filterAlias] = $filterClass;
+                $groups[$groupName][$filterAlias] = $filterClass;
+            } else {
+                $groups[$groupName][$filterAlias]->addParameters($parameters);
             }
         }
+
+        return $groups;
     }
 
     /**
@@ -123,7 +159,7 @@ abstract class Kernel
     /**
      * Finding filter by it alias
      * @param string $alias
-     * @return Filter|bool
+     * @return string|bool
      */
     protected function find($alias)
     {
@@ -132,11 +168,11 @@ abstract class Kernel
 
     /**
      * Add registered filter
-     * @param Filter $filter
+     * @param string|Filter $filter
      */
     protected function addRegistered($filter)
     {
-        $this->registeredFilters[$filter->alias()] = $filter;
+        $this->registeredFilters[$filter::alias()] = $filter;
     }
 
     /**
@@ -156,9 +192,13 @@ abstract class Kernel
 
     /**
      * Building queries for each filter groups
+     * @param array $filters
+     * @return array
      */
-    public function make()
+    public function make(array $filters = [])
     {
+        $this->groupUsingFilters($filters);
+
         $resultFilter = [];
 
         foreach ($this->usingFilters as $groupName => $groupFilters) {
@@ -229,14 +269,63 @@ abstract class Kernel
 
     /**
      * Checking is the custom filter class is inheritor of the Filter
-     * @param Filter $filterClass
-     * @param string $filter Registered user filter class
+     * @param string $filter Registered user filter class namespace
      * @throws \Exception
      */
-    protected function checkFilterClass($filterClass, $filter)
+    protected function checkFilterClass($filter)
     {
-        if (!$filterClass instanceof Filter) {
+        if (!is_subclass_of($filter, Filter::class)) {
             throw new \Exception("The class $filter must be instance of " . Filter::class);
         }
+    }
+
+    /**
+     * Applying filters only for specified model
+     * @param string $namespace
+     * @param array $filters
+     * @param Builder $query
+     * @return Builder
+     */
+    public function filterModel($namespace, array $filters = [], Builder $query = null)
+    {
+        $modelFilters = $this->makeModelGroup($namespace, $filters);
+
+        return $this->makeGroup($modelFilters, $query);
+    }
+
+    /**
+     * Making group of filters for model namespace
+     * @param string $namespace
+     * @param array $filters
+     * @return array
+     */
+    protected function makeModelGroup($namespace, array $filters)
+    {
+        $usingFilters = $this->getFilters($filters);
+
+        $modelFilters = [];
+        foreach ($usingFilters as $usingFilter) {
+            list($filterAlias, $parameters) = $this->parseUsingFilter($usingFilter);
+
+            /* @var string|Filter $filterNamespace */
+            $filterNamespace = $this->find($filterAlias);
+
+            if (!$filterNamespace || $filterNamespace::modelNamespace() != $namespace) {
+                continue;
+            }
+
+            /* @var Filter $filterClass */
+            $filterClass = new $filterNamespace;
+
+            $groupName = $this->getGroupName($filterClass->modelNamespace());
+
+            if (!$this->hasUsed($groupName, $filterAlias)) {
+                $modelFilters[$filterAlias] = $filterClass;
+            } else {
+                $modelFilters[$filterAlias]->addParameters($parameters);
+            }
+        }
+
+        return $modelFilters;
     }
 }

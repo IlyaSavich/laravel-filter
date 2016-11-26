@@ -80,6 +80,7 @@ class YourCustomFilter extends Filter
 ### Register your filter
 
 To say to the system about your filter just override the `$filters` field in your filter kernel and add your custom filter to this array. Example:
+
 ```
 use Savich\Filter\Kernel;
 
@@ -91,19 +92,44 @@ class YourFilterKernel extends Kernel
 }
 ```
 
+### Using Filter Trait
+
+If you want to use filter in models you need use `Filter` trait for it.
+ 
+```
+use Savich\Filter\Mixins\Filter;
+
+class YourModel extends Model
+{
+    use Filter;
+}
+
+```
+
 ### Use
 
 To use the system you need to call method `make()` of the filter kernel class. Example:
 ```
 use Namespace\Of\YourFilterKernel;
 
-$kernel = new YourFilterKernel();
+$kernel = YourFilterKernel::instance();
 $kernel->make();
+// or
+$kernel->make($arrayOfFilterAliases);
+
+// or through models
+
+YourModel::filter()->get();
+// or
+YourModel::filter($filters)->get();
 ```
+
+In case using filters in models method `filter` returns instance of `Illuminate\Database\Eloquent\Builder` so that you can use it in query chains.
 
 ### What will happen?
 
-The method `make()` will get filters aliases from the url parameters and try to find there in filters that you registered in kernel.
+<b>By default</b> the method `make()` will get filters aliases from the url parameters and try to find there in filters that you registered in kernel.
+If you will pass array of filters in `make` method it will filtering through this filters
 Then it will grouping all filters by models namespaces and building query for each group
 The method `make()` return array, where keys are models namespaces and values are instances of `Illuminate\Database\Eloquent\Builder`
 
@@ -172,8 +198,10 @@ class YourFilterKernel extends Kernel
 
 use Namespace\Of\YourFilterKernel;
 
-$kernel = new YourFilterKernel();
+$kernel = YourFilterKernel::instance();
 $kernel->make();
+// or
+$kernel->make($arrayOfFilterAliases);
 
 ```
 
@@ -207,26 +235,6 @@ It will be looks like `['role:user', 'role:admin', 'role:publisher']`
 The system parse each filter and create single class with alias `role` and will set `user`, `admin` and `publisher` to `$parameters` array in your custom filter. This is you can see above in [there](##example-of-works)
 
 ## Some Customizations
-
-### Customize passing filters
-
-If you want some customize passing filters through url or even getting array of filters not from url you can make it easily.
-For it first of all you need clean using filters. To this calling `cleanUsingFilters()` method in filter kernel.
-The second that you need is grouping filters that you want to use. For it call `groupUsingFilters()` method and pass in it array of filters
-Finally all done and you can apply filters by calling `make()` method.
-Example:
-
-```
-use Namespace\Of\YourFilterKernel;
-
-$usingFilters = ['some', 'new', 'filters:with,params'];
-
-$kernel = new YourFilterKernel();
-$kernel->cleanUsingFilters();
-$kernel->groupUsingFilters($usingFilters);
-
-$kernel->make();
-```
 
 ### Customize Group Name
 
