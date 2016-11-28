@@ -330,29 +330,29 @@ class Kernel
     {
         $usingFilters = $this->getFilters($filters);
 
-        $modelFilters = [];
+        $this->usingFilters[$namespace] = [];
+
         foreach ($usingFilters as $usingFilter) {
             list($filterAlias, $parameters) = $this->parseUsingFilter($usingFilter);
 
             /* @var string|Filter $filterNamespace */
             $filterNamespace = $this->find($filterAlias);
 
-            if (!$filterNamespace || $filterNamespace::modelNamespace() != $namespace) {
+            if (!$filterNamespace) {
                 continue;
             }
 
-            /* @var Filter $filterClass */
-            $filterClass = new $filterNamespace;
-
-            $groupName = $this->getGroupName($filterClass->modelNamespace());
-
-            if (!$this->hasUsed($groupName, $filterAlias)) {
-                $modelFilters[$filterAlias] = $filterClass;
+            if ($filterNamespace::modelNamespace() != $namespace) {
+                continue;
             }
 
-            $modelFilters[$filterAlias]->addParameters($parameters);
+            if (!$this->hasUsed($namespace, $filterAlias)) {
+                $this->usingFilters[$namespace][$filterAlias] = new $filterNamespace;
+            }
+
+            $this->usingFilters[$namespace][$filterAlias]->addParameters($parameters);
         }
 
-        return $modelFilters;
+        return $this->usingFilters[$namespace];
     }
 }
