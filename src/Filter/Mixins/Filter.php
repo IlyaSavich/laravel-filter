@@ -9,19 +9,18 @@ use Savich\Filter\Kernel;
 /**
  * Class Filter
  * @package Savich\Filter\Mixins
- * @method static Builder|Collection|\Eloquent filter(array $filters = [])
+ * @method static Builder|Collection|\Eloquent filter(Kernel $kernel, array $filters = [])
  */
 trait Filter
 {
     /**
      * @param Builder $query
+     * @param Kernel $kernel
      * @param array|string $filters
      * @return mixed
      */
-    public function scopeFilter($query, array $filters = [])
+    public function scopeFilter($query, Kernel $kernel, array $filters = [])
     {
-        $kernel = Kernel::instance();
-
         return $kernel->filterModel(static::class, $filters, $query);
     }
 }
