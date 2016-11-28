@@ -71,6 +71,7 @@ class Kernel
     /**
      * Grouping all filters from url by models.
      * Group name is the model class name in camel case
+     *
      * @param array $filters
      */
     public function groupUsingFilters(array $filters = [])
@@ -82,7 +83,9 @@ class Kernel
 
     /**
      * Grouping filters for future building query
+     *
      * @param array $filters
+     *
      * @return array
      * @throws \Exception
      */
@@ -110,9 +113,9 @@ class Kernel
 
             if (!$this->hasUsed($groupName, $filterAlias)) {
                 $this->usingFilters[$groupName][$filterAlias] = $filterClass;
-            } else {
-                $this->usingFilters[$groupName][$filterAlias]->addParameters($parameters);
             }
+
+            $this->usingFilters[$groupName][$filterAlias]->addParameters($parameters);
         }
 
         return $this->usingFilters;
@@ -120,7 +123,9 @@ class Kernel
 
     /**
      * Getting filters from url
+     *
      * @param array $filters
+     *
      * @return array
      */
     public function getFilters(array $filters)
@@ -131,7 +136,9 @@ class Kernel
     /**
      * Parse filter from url
      * Get alias and parameters
+     *
      * @param string $urlFilter
+     *
      * @return array
      */
     protected function parseUsingFilter($urlFilter)
@@ -147,7 +154,9 @@ class Kernel
     /**
      * Getting filters group name by models classes names
      * Group name is the model class name in camel case
+     *
      * @param string $modelNamespace
+     *
      * @return string
      */
     protected function getGroupName($modelNamespace)
@@ -157,7 +166,9 @@ class Kernel
 
     /**
      * Finding filter by it alias
+     *
      * @param string $alias
+     *
      * @return string|bool
      */
     protected function find($alias)
@@ -167,6 +178,7 @@ class Kernel
 
     /**
      * Add registered filter
+     *
      * @param string|Filter $filter
      */
     protected function addRegistered($filter)
@@ -176,8 +188,10 @@ class Kernel
 
     /**
      * Check if selected filter is already using in current filtering process
+     *
      * @param string $filterGroup
      * @param string $filterAlias
+     *
      * @return bool
      */
     public function hasUsed($filterGroup, $filterAlias)
@@ -191,7 +205,9 @@ class Kernel
 
     /**
      * Building queries for each filter groups
+     *
      * @param array $filters
+     *
      * @return array
      */
     public function make(array $filters = [])
@@ -209,8 +225,10 @@ class Kernel
 
     /**
      * Build filter query for group
+     *
      * @param array $groupFilters
      * @param Builder $query
+     *
      * @return Builder
      */
     protected function makeGroup($groupFilters, Builder $query = null)
@@ -229,7 +247,9 @@ class Kernel
 
     /**
      * Getting method to get model query
+     *
      * @param array $groupFilters
+     *
      * @return string
      */
     protected function getModelQueryFunction($groupFilters)
@@ -243,7 +263,9 @@ class Kernel
     /**
      * Filtering parameters
      * Remove empty
+     *
      * @param array $parameters
+     *
      * @return array
      */
     protected function filteringParameters($parameters)
@@ -268,7 +290,9 @@ class Kernel
 
     /**
      * Checking is the custom filter class is inheritor of the Filter
+     *
      * @param string $filter Registered user filter class namespace
+     *
      * @throws \Exception
      */
     protected function checkFilterClass($filter)
@@ -280,9 +304,11 @@ class Kernel
 
     /**
      * Applying filters only for specified model
+     *
      * @param string $namespace
      * @param array $filters
      * @param Builder $query
+     *
      * @return Builder
      */
     public function filterModel($namespace, array $filters = [], Builder $query = null)
@@ -294,8 +320,10 @@ class Kernel
 
     /**
      * Making group of filters for model namespace
+     *
      * @param string $namespace
      * @param array $filters
+     *
      * @return array
      */
     protected function makeModelGroup($namespace, array $filters)
