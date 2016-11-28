@@ -348,9 +348,9 @@ class Kernel
 
             if (!$this->hasUsed($groupName, $filterAlias)) {
                 $modelFilters[$filterAlias] = $filterClass;
-            } else {
-                $modelFilters[$filterAlias]->addParameters($parameters);
             }
+
+            $modelFilters[$filterAlias]->addParameters($parameters);
         }
 
         return $modelFilters;
