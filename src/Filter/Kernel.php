@@ -77,7 +77,7 @@ class Kernel
     {
         $this->cleanUsingFilters();
 
-        $this->usingFilters = $this->makeFilterGroups($filters);
+        $this->makeFilterGroups($filters);
     }
 
     /**
@@ -90,7 +90,6 @@ class Kernel
     {
         $usingFilters = $this->getFilters($filters);
 
-        $groups = [];
         foreach ($usingFilters as $usingFilter) {
             if (!is_string($usingFilter)) {
                 throw new \Exception('Invalid filter passed. Expecting string got ' . json_encode($usingFilter));
@@ -110,13 +109,13 @@ class Kernel
             $groupName = $this->getGroupName($filterClass->modelNamespace());
 
             if (!$this->hasUsed($groupName, $filterAlias)) {
-                $groups[$groupName][$filterAlias] = $filterClass;
+                $this->usingFilters[$groupName][$filterAlias] = $filterClass;
             } else {
-                $groups[$groupName][$filterAlias]->addParameters($parameters);
+                $this->usingFilters[$groupName][$filterAlias]->addParameters($parameters);
             }
         }
 
-        return $groups;
+        return $this->usingFilters;
     }
 
     /**
