@@ -273,7 +273,7 @@ class Kernel
         return array_filter($parameters, function ($parameter) {
             $parameter = trim($parameter);
 
-            return !empty($parameter);
+            return $parameter === "0" || $parameter;
         });
     }
 
