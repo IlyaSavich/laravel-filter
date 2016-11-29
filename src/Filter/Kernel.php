@@ -355,4 +355,23 @@ class Kernel
 
         return $this->usingFilters[$namespace];
     }
+
+    /**
+     * Applying filters and query result
+     * @param array $filters
+     *
+     * @return array
+     */
+    public function get(array $filters = [])
+    {
+        $filtered = $this->make($filters);
+
+        $result = [];
+        foreach ($filtered as $key => $query) {
+            /* @var Builder $query */
+            $result[$key] = $query->get();
+        }
+
+        return $result;
+    }
 }
