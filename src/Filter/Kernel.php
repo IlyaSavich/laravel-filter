@@ -3,7 +3,6 @@
 namespace Savich\Filter;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Input;
 use Savich\Filter\Contracts\Filter;
 
 /**
@@ -61,6 +60,13 @@ class Kernel
     }
 
     /**
+     * Making Kernel full singleton
+     */
+    public function __clone()
+    {
+    }
+
+    /**
      * Init registered filters
      * Create array that will used for finding filters by there aliases
      * @throws \Exception
@@ -74,118 +80,15 @@ class Kernel
     }
 
     /**
-     * Grouping all filters from url by models.
-     * Group name is the model class name in camel case
-     * @param array $filters
-     */
-    public function groupUsingFilters(array $filters = [])
-    {
-        $this->cleanUsingFilters();
-
-        $this->makeFilterGroups($filters);
-    }
-
-    /**
-     * Grouping filters for future building query
-     * @param array $filters
-     * @return array
+     * Checking is the custom filter class is inheritor of the Filter
+     * @param string $filter Registered user filter class namespace
      * @throws \Exception
      */
-    protected function makeFilterGroups(array $filters = [])
+    protected function checkFilterClass($filter)
     {
-        $usingFilters = $this->getFilters($filters);
-
-        foreach ($usingFilters as $usingFilter) {
-            if (!is_string($usingFilter)) {
-                throw new \Exception('Invalid filter passed. Expecting string got ' . json_encode($usingFilter));
-            }
-
-            list($filterAlias, $parameters) = $this->parseFilter($usingFilter);
-
-            $filter = $this->find($filterAlias);
-
-            if (!$filter) {
-                continue;
-            }
-
-            /* @var Filter $filterClass */
-            $filterClass = new $filter;
-
-            $groupName = $this->getGroupName($filterClass->modelNamespace());
-
-            if (!$this->hasUsed($groupName, $filterAlias)) {
-                $this->usingFilters[$groupName][$filterAlias] = $filterClass;
-            }
-
-            $this->usingFilters[$groupName][$filterAlias]->addParameters($parameters);
+        if (!is_subclass_of($filter, Filter::class)) {
+            throw new \Exception("The class $filter must be instance of " . Filter::class);
         }
-
-        return $this->usingFilters;
-    }
-
-    /**
-     * Getting filters from url
-     * @param array $filters
-     * @return array
-     */
-    public function getFilters(array $filters)
-    {
-        return empty($filters) ? Input::all() : $filters;
-    }
-
-    /**
-     * Parsing array of filters
-     * @param array $filters
-     * @return array
-     */
-    public function parseFilters($filters)
-    {
-        $matches = [];
-
-        foreach ($filters as $filter) {
-            list($alias, $parameters) = $this->parseFilter($filter);
-
-            $matches[$alias] = [$alias, $parameters];
-        }
-
-        return $matches;
-    }
-
-    /**
-     * Parse filter
-     * Get alias and parameters
-     * @param string $filter
-     * @return array
-     */
-    public function parseFilter($filter)
-    {
-        preg_match('/([^:]*)(:(.*))?/', $filter, $matches);
-
-        $parameters = isset($matches[3]) ? explode(',', $matches[3]) : [];
-        $parameters = $this->filteringParameters($parameters);
-
-        return [$matches[1], $parameters,];
-    }
-
-    /**
-     * Getting filters group name by models classes names
-     * Group name is the model class name in camel case
-     * @param string $modelNamespace
-     * @return string
-     */
-    protected function getGroupName($modelNamespace)
-    {
-        return $modelNamespace;
-    }
-
-    /**
-     * Finding filter by it alias
-     * @param string $alias
-     * @return string|bool
-     */
-    protected function find($alias)
-    {
-        return array_key_exists($alias, $this->registeredFilters) ? $this->registeredFilters[$alias] : false;
     }
 
     /**
@@ -198,18 +101,21 @@ class Kernel
     }
 
     /**
-     * Check if selected filter is already using in current filtering process
-     * @param string $filterGroup
-     * @param string $filterAlias
-     * @return bool
+     * Applying filters and query result
+     * @param array $filters
+     * @return array
      */
-    public function hasUsed($filterGroup, $filterAlias)
+    public function get(array $filters = [])
     {
-        if (!isset($this->usingFilters[$filterGroup])) {
-            return false;
+        $filtered = $this->make($filters);
+
+        $result = [];
+        foreach ($filtered as $key => $query) {
+            /* @var Builder $query */
+            $result[$key] = $query->get();
         }
 
-        return array_key_exists($filterAlias, $this->usingFilters[$filterGroup]);
+        return $result;
     }
 
     /**
@@ -231,6 +137,18 @@ class Kernel
     }
 
     /**
+     * Grouping all filters from url by models.
+     * Group name is the model class name in camel case
+     * @param array $filters
+     */
+    public function groupUsingFilters(array $filters = [])
+    {
+        $this->cleanUsingFilters();
+
+        $this->makeFilterGroups($filters);
+    }
+
+    /**
      * Build filter query for group
      * @param array $groupFilters
      * @param Builder $query
@@ -239,7 +157,9 @@ class Kernel
     protected function makeGroup($groupFilters, Builder $query = null)
     {
         if (is_null($query)) {
-            $query = call_user_func($this->getModelQueryFunction($groupFilters));
+            $filter = array_first($groupFilters);
+
+            $query = $this->getModelQuery($filter);
         }
 
         foreach ($groupFilters as $groupFilter) {
@@ -248,34 +168,6 @@ class Kernel
         }
 
         return $query;
-    }
-
-    /**
-     * Getting method to get model query
-     * @param array $groupFilters
-     * @return string
-     */
-    protected function getModelQueryFunction($groupFilters)
-    {
-        /* @var Filter $filterClass */
-        $filterClass = array_first($groupFilters);
-
-        return $filterClass->modelNamespace() . '::query';
-    }
-
-    /**
-     * Filtering parameters
-     * Remove empty
-     * @param array $parameters
-     * @return array
-     */
-    protected function filteringParameters($parameters)
-    {
-        return array_filter($parameters, function ($parameter) {
-            $parameter = trim($parameter);
-
-            return $parameter === "0" || $parameter;
-        });
     }
 
     /**
@@ -290,15 +182,79 @@ class Kernel
     }
 
     /**
-     * Checking is the custom filter class is inheritor of the Filter
-     * @param string $filter Registered user filter class namespace
+     * Grouping filters for future building query
+     * @param array $filters
+     * @return array
      * @throws \Exception
      */
-    protected function checkFilterClass($filter)
+    protected function makeFilterGroups(array $filters = [])
     {
-        if (!is_subclass_of($filter, Filter::class)) {
-            throw new \Exception("The class $filter must be instance of " . Filter::class);
+        foreach ($filters as $alias => $parameters) {
+            /* @var string|Filter $filterNamespace */
+            $filterNamespace = $this->find($alias);
+
+            if (!$filterNamespace) {
+                continue;
+            }
+
+            /* @var Filter $filterClass */
+            $filterClass = new $filterNamespace;
+
+            $groupName = $this->getGroupName($filterClass->modelNamespace());
+
+            if (!$this->hasUsed($groupName, $alias)) {
+                $this->usingFilters[$groupName][$alias] = $filterClass;
+                $this->usingFilters[$groupName][$alias]->addParameters($filters);
+            }
         }
+
+        return $this->usingFilters;
+    }
+
+    /**
+     * Getting method to get model query
+     * @param Filter $filter
+     * @return string
+     */
+    public function getModelQuery($filter)
+    {
+        return call_user_func([$filter->modelNamespace(), 'query']);
+    }
+
+    /**
+     * Finding filter by it alias
+     * @param string $alias
+     * @return string|bool
+     */
+    protected function find($alias)
+    {
+        return array_key_exists($alias, $this->registeredFilters) ? $this->registeredFilters[$alias] : false;
+    }
+
+    /**
+     * Getting filters group name by models classes names
+     * Group name is the model class name in camel case
+     * @param string $modelNamespace
+     * @return string
+     */
+    protected function getGroupName($modelNamespace)
+    {
+        return $modelNamespace;
+    }
+
+    /**
+     * Check if selected filter is already using in current filtering process
+     * @param string $filterGroup
+     * @param string $filterAlias
+     * @return bool
+     */
+    public function hasUsed($filterGroup, $filterAlias)
+    {
+        if (!isset($this->usingFilters[$filterGroup])) {
+            return false;
+        }
+
+        return array_key_exists($filterAlias, $this->usingFilters[$filterGroup]);
     }
 
     /**
@@ -323,15 +279,11 @@ class Kernel
      */
     protected function makeModelGroup($namespace, array $filters)
     {
-        $usingFilters = $this->getFilters($filters);
-
         $this->usingFilters[$namespace] = [];
 
-        foreach ($usingFilters as $usingFilter) {
-            list($filterAlias, $parameters) = $this->parseFilter($usingFilter);
-
+        foreach ($filters as $alias => $parameters) {
             /* @var string|Filter $filterNamespace */
-            $filterNamespace = $this->find($filterAlias);
+            $filterNamespace = $this->find($alias);
 
             if (!$filterNamespace) {
                 continue;
@@ -341,31 +293,12 @@ class Kernel
                 continue;
             }
 
-            if (!$this->hasUsed($namespace, $filterAlias)) {
-                $this->usingFilters[$namespace][$filterAlias] = new $filterNamespace;
+            if (!$this->hasUsed($namespace, $alias)) {
+                $this->usingFilters[$namespace][$alias] = new $filterNamespace;
+                $this->usingFilters[$namespace][$alias]->addParameters($filters);
             }
-
-            $this->usingFilters[$namespace][$filterAlias]->addParameters($parameters);
         }
 
         return $this->usingFilters[$namespace];
-    }
-
-    /**
-     * Applying filters and query result
-     * @param array $filters
-     * @return array
-     */
-    public function get(array $filters = [])
-    {
-        $filtered = $this->make($filters);
-
-        $result = [];
-        foreach ($filtered as $key => $query) {
-            /* @var Builder $query */
-            $result[$key] = $query->get();
-        }
-
-        return $result;
     }
 }
